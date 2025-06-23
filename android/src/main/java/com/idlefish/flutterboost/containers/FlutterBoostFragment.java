@@ -341,6 +341,22 @@ public class FlutterBoostFragment extends FlutterFragment implements FlutterView
         FlutterViewContainer top = FlutterContainerManager.instance().getTopContainer();
         if (top != null && top != this) top.detachFromEngineIfNeeded();
 
+        // FlutterBoost.instance().getPlugin().onContainerAppeared(this, () -> {
+        //     // attach new container to the engine.
+        //     attachToEngineIfNeeded();
+        //     textureHooker.onFlutterTextureViewRestoreState();
+        //     onComplete.run();
+        // });
+        
+        if(getFlutterEngine()!=null)
+            getFlutterEngine().getActivityControlSurface().onContainerAppeared(this, () -> {
+                // attach new container to the engine.
+                attachToEngineIfNeeded();
+                textureHooker.onFlutterTextureViewRestoreState();
+                onComplete.run();
+            });
+        else
+            // If the FlutterEngine is not ready, we will wait for it to be created.
         FlutterBoost.instance().getPlugin().onContainerAppeared(this, () -> {
             // attach new container to the engine.
             attachToEngineIfNeeded();
