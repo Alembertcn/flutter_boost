@@ -17,6 +17,7 @@ import 'case/media_query.dart';
 import 'case/native_view_demo.dart';
 import 'case/platform_view_perf.dart';
 import 'case/popUntil.dart';
+import 'case/pushreplace.dart';
 import 'case/radial_hero_animation.dart';
 import 'case/return_data.dart';
 import 'case/rotation_transition.dart';
@@ -450,6 +451,14 @@ class _MyAppState extends State<MyApp> {
               uniqueId: uniqueId!,
               builder: (_) => const FlutterRebuildPageB(),
             );
+          });
+    },
+    'pushReplacement': (settings, uniqueId) {
+      return MaterialPageRoute(
+          settings: settings,
+          builder: (ctx) {
+            var m = settings.arguments as Map<dynamic, dynamic>?;
+            return PushReplacementWidget(index: m!['index'] ?? 1,);
           });
     },
   };

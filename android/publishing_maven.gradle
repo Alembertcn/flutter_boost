@@ -1,0 +1,33 @@
+apply plugin: 'maven-publish'
+version = publishVersion
+group = publishGroup
+// https://developer.android.com/studio/build/maven-publish-plugin?hl=zh-cn
+// https://docs.gradle.org/current/userguide/publishing_maven.html#publishing_maven:publications
+afterEvaluate {
+    publishing{
+        publications{
+            release(MavenPublication){
+                groupId publishGroup
+                artifactId "${moduleName}_release"
+                version publishVersion
+                from components.release
+            }
+            debug(MavenPublication){
+                groupId publishGroup
+                artifactId "${moduleName}_debug"
+                version publishVersion
+                from components.debug
+            }
+        }
+        repositories {
+            maven {
+                // change to point to your repo, e.g. http://my.org/repo
+                url = "https://web-gy.httester.com/repository/flutter"
+                credentials {
+                    username System.getenv("WB_REPO_USER")
+                    password System.getenv("WB_REPO_PWD")
+                }
+            }
+        }
+    }
+}

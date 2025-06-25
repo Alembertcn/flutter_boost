@@ -49,6 +49,8 @@ public class FlutterBoostActivity extends FlutterActivity implements FlutterView
     private LifecycleStage stage;
     private boolean isAttached = false;
 
+    PlatformChannel.SystemChromeStyle restoreTheme = null;
+
     private boolean isDebugLoggingEnabled() {
         return FlutterBoostUtils.isDebugLoggingEnabled();
     }
@@ -57,16 +59,13 @@ public class FlutterBoostActivity extends FlutterActivity implements FlutterView
     protected void onCreate(Bundle savedInstanceState) {
         if (isDebugLoggingEnabled()) Log.d(TAG, "#onCreate: " + this);
         final FlutterContainerManager containerManager = FlutterContainerManager.instance();
-        // try to detach prevous container from the engine.
         FlutterViewContainer top = containerManager.getTopContainer();
-        if (top != null && top != this) {
-            if (top instanceof FlutterBoostActivity) {
-                PlatformChannel.SystemChromeStyle preContainerTheme = FlutterBoostUtils.getCurrentSystemUiOverlayTheme(((FlutterBoostActivity) top).platformPlugin);
-                if (preContainerTheme != null) {
-                    FlutterBoostUtils.setSystemChromeSystemUIOverlayStyle(this, preContainerTheme);
-                }
-            }
-            top.detachFromEngineIfNeeded();
+        if (top != this && top instanceof FlutterBoostActivity) {
+            // find the theme of the previous container
+            restoreTheme = ContainerThemeMgr.findTheme((FlutterBoostActivity) top);
+        } else if (top == null) {
+            // this is the first active container, try to get the theme of the last-destroyed container
+            restoreTheme = ContainerThemeMgr.getFinalStyle();
         }
         super.onCreate(savedInstanceState);
         stage = LifecycleStage.ON_CREATE;
@@ -86,6 +85,21 @@ public class FlutterBoostActivity extends FlutterActivity implements FlutterView
 
     @Override
     public boolean shouldDispatchAppLifecycleState() {
+        return false;
+    }
+
+    /**
+     * Whether to automatically attach the {@link FlutterView} to the engine.
+     *
+     * <p>In the add-to-app scenario where multiple {@link FlutterView} share the same {@link
+     * FlutterEngine}, the host application desires to determine the timing of attaching the {@link
+     * FlutterView} to the engine, for example, during the {@code onResume} instead of the {@code
+     * onCreateView}.
+     *
+     * <p>Defaults to {@code true}.
+     */
+    @Override
+    public boolean attachToEngineAutomatically() {
         return false;
     }
 
@@ -154,6 +168,9 @@ public class FlutterBoostActivity extends FlutterActivity implements FlutterView
     protected void onPause() {
         super.onPause();
         if (isDebugLoggingEnabled()) Log.d(TAG, "#onPause: " + this + ", isOpaque=" + isOpaque());
+        // update the restoreTheme of this container
+        ContainerThemeMgr.onActivityPause(this, restoreTheme);
+        restoreTheme = ContainerThemeMgr.findTheme(this);
         FlutterViewContainer top = FlutterContainerManager.instance().getTopActivityContainer();
         if (Build.VERSION.SDK_INT == Build.VERSION_CODES.Q) {
             if (top != null && top != this && !top.isOpaque() && top.isPausing()) {
@@ -174,7 +191,7 @@ public class FlutterBoostActivity extends FlutterActivity implements FlutterView
     @Override
     public void onFlutterTextureViewCreated(FlutterTextureView flutterTextureView) {
         super.onFlutterTextureViewCreated(flutterTextureView);
-        textureHooker.hookFlutterTextureView(flutterTextureView);
+        textureHooker.hookFlutterTextureView(flutterTextureView, getCachedEngineId());
     }
 
     private void performAttach() {
@@ -184,7 +201,11 @@ public class FlutterBoostActivity extends FlutterActivity implements FlutterView
         getFlutterEngine().getActivityControlSurface().attachToActivity(getExclusiveAppComponent(), getLifecycle());
 
         if (platformPlugin == null) {
-            platformPlugin = new PlatformPlugin(getActivity(), getFlutterEngine().getPlatformChannel());
+            platformPlugin = new PlatformPlugin(getActivity(), getFlutterEngine().getPlatformChannel(), this);
+            // Set the restoreTheme to current container
+            if (restoreTheme != null) {
+                FlutterBoostUtils.setSystemChromeSystemUIOverlayStyle(platformPlugin, restoreTheme);
+            }
         }
 
         // Attach rendering pipeline.
@@ -246,6 +267,7 @@ public class FlutterBoostActivity extends FlutterActivity implements FlutterView
     @Override
     protected void onDestroy() {
         if (isDebugLoggingEnabled()) Log.d(TAG, "#onDestroy: " + this);
+        ContainerThemeMgr.onActivityDestroy(this);
         stage = LifecycleStage.ON_DESTROY;
         detachFromEngineIfNeeded();
         textureHooker.onFlutterTextureViewRelease();

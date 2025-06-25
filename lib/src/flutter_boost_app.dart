@@ -128,9 +128,10 @@ class FlutterBoostAppState extends State<FlutterBoostApp> {
   void _addAppLifecycleStateEventListener() {
     _lifecycleStateListenerRemover = BoostChannel.instance
         .addEventListener(_appLifecycleChangedKey, (key, arguments) {
-      //we just deal two situation,resume and pause
-      //and 0 is resumed
-      //and 2 is paused
+      // we just deal two situation,resume and pause
+      // and 1 is resumed
+      // and 4 is paused
+      // See https://github.com/flutter/engine/pull/42418 for more details.
 
       final int? index = arguments["lifecycleState"];
 
@@ -461,11 +462,22 @@ class FlutterBoostAppState extends State<FlutterBoostApp> {
         Future<void>.delayed(
             const Duration(milliseconds: 50),
             () => targetContainer?.navigator
-                ?.popUntil(ModalRoute.withName(targetPage!.name!)));
+                ?.popUntil(_withPage(targetPage!)));
       }
     } else {
-      topContainer?.navigator?.popUntil(ModalRoute.withName(targetPage!.name!));
+      if (targetPage != null) {
+        topContainer?.navigator?.popUntil(_withPage(targetPage));
+      } else {
+        Logger.error('can\'t find route=$route, uniqueId=$uniqueId on popUntil');
+      }
     }
+  }
+
+  RoutePredicate _withPage(BoostPage targetPage) {
+    return (Route<dynamic> route) {
+      return !route.willHandlePopInternally
+          && route == targetPage.route;
+    };
   }
 
   Future<bool> pop(

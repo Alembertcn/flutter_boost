@@ -1,0 +1,17 @@
+
+
+dependencies {
+    compileOnly 'io.flutter:flutter_embedding_release:1.0.0-edd8546116457bdf1c5bdfb13ecb9463d2bb5ed4'
+}
+
+
+ext {
+    groupId = 'com.taobao.fleamarket'
+    artifactId = "FlutterBoost"
+
+    publishGroup = 'com.idlefish.flutterboost'
+    publishVersion = '4.0'
+    moduleName = 'flutter_boost'
+}
+apply from: 'publishing_maven.gradle'
+

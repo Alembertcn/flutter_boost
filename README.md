@@ -6,12 +6,7 @@
 </p>
 
 # Release Note
-
-## [ohos] New Platform
-flutter_boost has been fully adapted for the ohos platform. Please refer to item 10 of the following document to understand the related conventions before integrating：
-<a href="Frequently Asked Question.md">FAQ</a>
-
-## 4.6.5
+## 5.0.2
 
 PS：Null-safety is already supported.
 
@@ -43,7 +38,7 @@ Open you pubspec.yaml and add the following line to dependencies:
 flutter_boost:
     git:
         url: 'https://github.com/alibaba/flutter_boost.git'
-        ref: '4.6.5'
+        ref: '5.0.2'
 ```
 
 # Version Notes

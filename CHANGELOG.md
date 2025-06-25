@@ -1,4 +1,21 @@
 ## NEXT
+1. [dart]添加HDR/HEIC/HEIF/TIFF/WBMP/WEBP等图片格式的测试案例
+
+## 5.0.2
+1. Adapt to the official engine's App Lifecycle state changes
+2. fix: android add namespace
+3. fix-1962
+4. [Android]fix SystemUiOverlayStyle设置失效
+5. fix-1863
+
+## 5.0.1
+1. Add `mixin` modifier to avoid breaking user codes
+2. 修复当同一个PageContainer存在多个相同路由名字的Page时,popUntil无法指定uniqueId
+
+## 5.0.0
+1. Fix the sample code's compilation errors on Flutter 3.16.x
+2. Fix NPE when platform plugin delegate is null
+3. Avoid unnecessary attach/detach operations of the engine
 
 ## 4.6.5
 1. [dart]支持业务侧获取当前flutter页面是否是外部路由flutter页面

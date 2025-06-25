@@ -65,6 +65,21 @@ public class FlutterBoostFragment extends FlutterFragment implements FlutterView
         return false;
     }
 
+    /**
+     * Whether to automatically attach the {@link FlutterView} to the engine.
+     *
+     * <p>In the add-to-app scenario where multiple {@link FlutterView} share the same {@link
+     * FlutterEngine}, the host application desires to determine the timing of attaching the {@link
+     * FlutterView} to the engine, for example, during the {@code onResume} instead of the {@code
+     * onCreateView}.
+     *
+     * <p>Defaults to {@code true}.
+     */
+    @Override
+    public boolean attachToEngineAutomatically() {
+        return false;
+    }
+
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -159,7 +174,9 @@ public class FlutterBoostFragment extends FlutterFragment implements FlutterView
         if (!isHidden()) {
             didFragmentShow(() -> {
                 // Update system UI overlays to match Flutter's desired system chrome style
-                onUpdateSystemUiOverlays();
+                if(isCommonEngine()){
+                    onUpdateSystemUiOverlays();
+                }
             });
         }
     }
@@ -226,7 +243,7 @@ public class FlutterBoostFragment extends FlutterFragment implements FlutterView
     public void onBackPressed() {
         if (isDebugLoggingEnabled()) Log.d(TAG, "#onBackPressed: " + this);
         // Intercept the user's press of the back key.
-        FlutterBoost.instance().getPlugin().onBackPressed();
+        FlutterBoost.instance().getPlugin(getCachedEngineId()).onBackPressed();
     }
 
     @Override
@@ -265,7 +282,7 @@ public class FlutterBoostFragment extends FlutterFragment implements FlutterView
     @Override
     public void onFlutterTextureViewCreated(FlutterTextureView flutterTextureView) {
         super.onFlutterTextureViewCreated(flutterTextureView);
-        textureHooker.hookFlutterTextureView(flutterTextureView);
+        textureHooker.hookFlutterTextureView(flutterTextureView,getCachedEngineId());
     }
 
     @Override
@@ -311,7 +328,7 @@ public class FlutterBoostFragment extends FlutterFragment implements FlutterView
 
     @Override
     public String getCachedEngineId() {
-        return FlutterBoost.ENGINE_ID;
+        return getArguments()!=null ? getArguments().getString(ARG_CACHED_ENGINE_ID, FlutterBoost.ENGINE_ID) : FlutterBoost.ENGINE_ID;
     }
 
     @Override
@@ -324,9 +341,16 @@ public class FlutterBoostFragment extends FlutterFragment implements FlutterView
 
         // try to detach *prevous* container from the engine.
         FlutterViewContainer top = FlutterContainerManager.instance().getTopContainer();
-        if (top != null && top != this) top.detachFromEngineIfNeeded();
+        if (top != null && top != this && top.isCommonEngine() && this.isCommonEngine()) top.detachFromEngineIfNeeded();
 
-        FlutterBoost.instance().getPlugin().onContainerAppeared(this, () -> {
+        // FlutterBoost.instance().getPlugin().onContainerAppeared(this, () -> {
+        //     // attach new container to the engine.
+        //     attachToEngineIfNeeded();
+        //     textureHooker.onFlutterTextureViewRestoreState();
+        //     onComplete.run();
+        // });
+        
+        FlutterBoost.instance().getPlugin(getCachedEngineId()).onContainerAppeared(this, () -> {
             // attach new container to the engine.
             attachToEngineIfNeeded();
             textureHooker.onFlutterTextureViewRestoreState();
@@ -336,7 +360,7 @@ public class FlutterBoostFragment extends FlutterFragment implements FlutterView
 
     protected void didFragmentHide() {
         if (isDebugLoggingEnabled()) Log.d(TAG, "#didFragmentHide: " + this + ", isOpaque=" + isOpaque());
-        FlutterBoost.instance().getPlugin().onContainerDisappeared(this);
+        FlutterBoost.instance().getPlugin(getCachedEngineId()).onContainerDisappeared(this);
         // We defer |performDetach| call to new Flutter container's |onResume|;
         // performDetach();
     }
@@ -348,7 +372,7 @@ public class FlutterBoostFragment extends FlutterFragment implements FlutterView
         getFlutterEngine().getActivityControlSurface().attachToActivity(getExclusiveAppComponent(), getLifecycle());
 
         if (platformPlugin == null) {
-            platformPlugin = new PlatformPlugin(getActivity(), getFlutterEngine().getPlatformChannel());
+            platformPlugin = new PlatformPlugin(getActivity(), getFlutterEngine().getPlatformChannel(), this);
         }
 
         // Attach rendering pipeline.
@@ -378,6 +402,11 @@ public class FlutterBoostFragment extends FlutterFragment implements FlutterView
 
     public void attachToEngineIfNeeded() {
         if (isDebugLoggingEnabled()) Log.d(TAG, "#attachToEngineIfNeeded: " + this);
+        // 解决Activity内存泄露问题
+        View view = getView();
+        if (view != null) {
+            view.setImportantForAutofill(View.IMPORTANT_FOR_AUTOFILL_YES);
+        }
         if (!isAttached) {
             performAttach();
             isAttached = true;
@@ -387,7 +416,15 @@ public class FlutterBoostFragment extends FlutterFragment implements FlutterView
     @Override
     public void detachFromEngineIfNeeded() {
         if (isDebugLoggingEnabled()) Log.d(TAG, "#detachFromEngineIfNeeded: " + this);
+        // 解决Activity内存泄露问题
+        View view = getView();
+        if (view != null) {
+            view.setImportantForAutofill(View.IMPORTANT_FOR_AUTOFILL_NO_EXCLUDE_DESCENDANTS);
+        }
         if (isAttached) {
+//            // 解决Activity内存泄露问题(重点)
+            getFlutterEngine().getDartExecutor().getBinaryMessenger().setMessageHandler("flutter/keyboard",null);
+
             performDetach();
             isAttached = false;
         }
@@ -416,6 +453,7 @@ public class FlutterBoostFragment extends FlutterFragment implements FlutterView
         private String url = "/";
         private HashMap<String, Object> params;
         private String uniqueId;
+        private String engineId = FlutterBoost.ENGINE_ID;
 
         public CachedEngineFragmentBuilder() {
             this(FlutterBoostFragment.class);
@@ -437,6 +475,10 @@ public class FlutterBoostFragment extends FlutterFragment implements FlutterView
 
         public CachedEngineFragmentBuilder uniqueId(String uniqueId) {
             this.uniqueId = uniqueId;
+            return this;
+        }
+        public CachedEngineFragmentBuilder engineId(String engineId) {
+            this.engineId = engineId;
             return this;
         }
 
@@ -471,7 +513,7 @@ public class FlutterBoostFragment extends FlutterFragment implements FlutterView
          */
         protected Bundle createArgs() {
             Bundle args = new Bundle();
-            args.putString(ARG_CACHED_ENGINE_ID, FlutterBoost.ENGINE_ID);
+            args.putString(ARG_CACHED_ENGINE_ID, engineId);
             args.putBoolean(ARG_DESTROY_ENGINE_WITH_FRAGMENT, destroyEngineWithFragment);
             args.putString(
                     ARG_FLUTTERVIEW_RENDER_MODE,

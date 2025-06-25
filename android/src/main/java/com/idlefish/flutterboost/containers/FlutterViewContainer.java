@@ -5,6 +5,9 @@
 package com.idlefish.flutterboost.containers;
 
 import android.app.Activity;
+import android.text.TextUtils;
+
+import com.idlefish.flutterboost.FlutterBoost;
 
 import java.util.Map;
 
@@ -20,4 +23,6 @@ public interface FlutterViewContainer {
     default boolean isPausing() { return false; }
     default boolean isOpaque() { return true; }
     default void detachFromEngineIfNeeded() {}
+    default boolean isCommonEngine() { return FlutterBoost.ENGINE_ID.equals(getCachedEngineId()); }
+    default String getCachedEngineId() { return FlutterBoost.ENGINE_ID; }
 }
