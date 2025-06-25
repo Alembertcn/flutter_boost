@@ -20,6 +20,7 @@ import java.util.List;
 import java.util.Map;
 
 import io.flutter.embedding.engine.FlutterEngine;
+import io.flutter.embedding.engine.FlutterEngineCache;
 import io.flutter.embedding.engine.plugins.FlutterPlugin;
 import io.flutter.embedding.engine.plugins.activity.ActivityAware;
 import io.flutter.embedding.engine.plugins.activity.ActivityPluginBinding;
@@ -34,9 +35,9 @@ public class FlutterBoostPlugin implements FlutterPlugin, NativeRouterApi, Activ
 
     private FlutterEngine engine;
     private FlutterRouterApi channel;
-    private FlutterBoostDelegate delegate;
+    private static FlutterBoostDelegate delegate;
     private StackInfo dartStack;
-    private SparseArray<String> pageNames;
+    private static SparseArray<String> pageNames = new SparseArray<String>();
     private int requestCode = 1000;
 
     private HashMap<String, LinkedList<EventListener>> listenersTable = new HashMap<>();
@@ -63,7 +64,6 @@ public class FlutterBoostPlugin implements FlutterPlugin, NativeRouterApi, Activ
         NativeRouterApi.setup(binding.getBinaryMessenger(), this);
         engine = binding.getFlutterEngine();
         channel = new FlutterRouterApi(binding.getBinaryMessenger());
-        pageNames = new SparseArray<String>();
     }
 
     @Override
@@ -81,9 +81,17 @@ public class FlutterBoostPlugin implements FlutterPlugin, NativeRouterApi, Activ
             if (pageNames != null) {
                 pageNames.put(requestCode, params.getPageName());
             }
+            Map<String, Object> arguments = (Map<String, Object>) (Object) params.getArguments();
+
+            String sourceContainerId = null;
+            if (arguments != null && arguments.get(FlutterBoostRouteOptions.ARGS_SCOUCE_CONTINUED_ID) != null) {
+                sourceContainerId = arguments.get(FlutterBoostRouteOptions.ARGS_SCOUCE_CONTINUED_ID).toString();
+                arguments.remove(FlutterBoostRouteOptions.ARGS_SCOUCE_CONTINUED_ID);
+            }
             FlutterBoostRouteOptions options = new FlutterBoostRouteOptions.Builder()
                     .pageName(params.getPageName())
-                    .arguments((Map<String, Object>) (Object) params.getArguments())
+                    .arguments(arguments)
+                    .sourceContainerId(sourceContainerId)
                     .requestCode(requestCode)
                     .build();
             delegate.pushNativeRoute(options);
@@ -96,6 +104,7 @@ public class FlutterBoostPlugin implements FlutterPlugin, NativeRouterApi, Activ
     public void pushFlutterRoute(CommonParams params) {
         if (isDebugLoggingEnabled()) Log.d(TAG, "#pushFlutterRoute: " + params.getUniqueId() + ", " + this);
         if (delegate != null) {
+
             FlutterBoostRouteOptions options = new FlutterBoostRouteOptions.Builder()
                     .pageName(params.getPageName())
                     .uniqueId(params.getUniqueId())
@@ -342,19 +351,24 @@ public class FlutterBoostPlugin implements FlutterPlugin, NativeRouterApi, Activ
     }
 
     public void onContainerCreated(FlutterViewContainer container) {
-        if (isDebugLoggingEnabled()) Log.d(TAG, "#onContainerCreated: " + container.getUniqueId() + ", " + this);
+        if (isDebugLoggingEnabled()) Log.d(TAG, "#onContainerCreated: " + container.getUniqueId() + ", isSingleEngine:"+container.isCommonEngine()+" " + this);
         FlutterContainerManager.instance().addContainer(container.getUniqueId(), container);
-        if (FlutterContainerManager.instance().getContainerSize() == 1) {
-           changeFlutterAppLifecycle(FLUTTER_APP_STATE_RESUMED);
+        if (FlutterContainerManager.instance().getContainerSize(container.getCachedEngineId()) == 1) {
+            changeFlutterAppLifecycle(FLUTTER_APP_STATE_RESUMED);
+        }
+        if(!container.isCommonEngine()){
+            FlutterBoost.instance().removePendingTearDown(container.getCachedEngineId());
         }
     }
 
     public void onContainerAppeared(FlutterViewContainer container, Runnable onPushRouteComplete) {
         String uniqueId = container.getUniqueId();
         if (isDebugLoggingEnabled()) Log.d(TAG, "#onContainerAppeared: " + uniqueId + ", " + this);
-        FlutterContainerManager.instance().activateContainer(uniqueId, container);
+        if(container.isCommonEngine()){
+            FlutterContainerManager.instance().activateContainer(uniqueId, container);
+        }
         pushRoute(uniqueId, container.getUrl(), container.getUrlParams(), reply -> {
-            if (FlutterContainerManager.instance().isTopContainer(uniqueId)) {
+            if (FlutterContainerManager.instance().isTopContainer(uniqueId) || !container.isCommonEngine()) {
                 if (onPushRouteComplete != null) {
                     onPushRouteComplete.run();
                 }
@@ -373,10 +387,16 @@ public class FlutterBoostPlugin implements FlutterPlugin, NativeRouterApi, Activ
     public void onContainerDestroyed(FlutterViewContainer container) {
         String uniqueId = container.getUniqueId();
         if (isDebugLoggingEnabled()) Log.d(TAG, "#onContainerDestroyed: " + uniqueId + ", " + this);
-        removeRoute(uniqueId, reply -> {});
+
+        if (container.isCommonEngine()){
+            removeRoute(uniqueId, reply -> {});
+        }
         FlutterContainerManager.instance().removeContainer(uniqueId);
-        if (FlutterContainerManager.instance().getContainerSize() == 0) {
+        if (FlutterContainerManager.instance().getContainerSize(container.getCachedEngineId()) == 0) {
             changeFlutterAppLifecycle(FLUTTER_APP_STATE_PAUSED);
+        }
+        if(!container.isCommonEngine()){
+            FlutterBoost.instance().tearDown(container.getCachedEngineId(),true);
         }
     }
 
@@ -397,9 +417,16 @@ public class FlutterBoostPlugin implements FlutterPlugin, NativeRouterApi, Activ
                     }
 
                     // Get a result back from an activity when it ends.
-                    channel.onNativeResult(params, reply -> {
-                    if (isDebugLoggingEnabled()) Log.d(TAG, "#onNativeResult return, pageName=" + pageName + ", " + this);
-                    });
+
+                    // HACK 修改为所有都通知
+//                    channel.onNativeResult(params, reply -> {
+//                    if (isDebugLoggingEnabled()) Log.d(TAG, "#onNativeResult return, pageName=" + pageName + ", " + this);
+//                    });
+                    for (FlutterBoostPlugin plugin : FlutterBoost.instance().allPlugins) {
+                        plugin.channel.onNativeResult(params, reply -> {
+                            if (isDebugLoggingEnabled()) Log.d(TAG, "#onNativeResult return, pageName=" + pageName + ", " + this);
+                        });
+                    }
                 }
             } else {
                 throw new RuntimeException("FlutterBoostPlugin might *NOT* have attached to engine yet!");

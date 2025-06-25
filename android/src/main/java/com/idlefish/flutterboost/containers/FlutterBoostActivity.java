@@ -191,7 +191,7 @@ public class FlutterBoostActivity extends FlutterActivity implements FlutterView
     @Override
     public void onFlutterTextureViewCreated(FlutterTextureView flutterTextureView) {
         super.onFlutterTextureViewCreated(flutterTextureView);
-        textureHooker.hookFlutterTextureView(flutterTextureView);
+        textureHooker.hookFlutterTextureView(flutterTextureView, getCachedEngineId());
     }
 
     private void performAttach() {

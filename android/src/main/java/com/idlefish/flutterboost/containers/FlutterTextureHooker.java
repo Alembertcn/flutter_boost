@@ -16,6 +16,7 @@ import java.lang.reflect.Method;
 
 import io.flutter.embedding.android.FlutterTextureView;
 import io.flutter.embedding.engine.FlutterEngine;
+import io.flutter.embedding.engine.FlutterEngineCache;
 import io.flutter.embedding.engine.renderer.FlutterRenderer;
 
 
@@ -23,6 +24,7 @@ class FlutterTextureHooker {
     private SurfaceTexture restoreSurface;
     private FlutterTextureView flutterTextureView;
     private boolean isNeedRestoreState = false;
+    private String cachedEngineId;
 
     /**
      * Release surface when Activity.onDestroy / Fragment.onDestroy.
@@ -30,11 +32,13 @@ class FlutterTextureHooker {
      */
     public void onFlutterTextureViewRelease() {
         if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.M) {
-            int containerSize = FlutterContainerManager.instance().getContainerSize();
+            int containerSize = FlutterContainerManager.instance().getContainerSize(this.cachedEngineId);
             if (containerSize == 1) {
-                FlutterEngine engine = FlutterBoost.instance().getEngine();
-                FlutterRenderer renderer = engine.getRenderer();
-                renderer.stopRenderingToSurface();
+                FlutterEngine engine = FlutterEngineCache.getInstance().get(this.cachedEngineId);
+                if (engine != null) {
+                    FlutterRenderer renderer = engine.getRenderer();
+                    renderer.stopRenderingToSurface();
+                }
             }
             if (restoreSurface != null) {
                 restoreSurface.release();
@@ -69,7 +73,7 @@ class FlutterTextureHooker {
                         next = (Boolean) shouldNotify.invoke(flutterTextureView);
                     }
                     if (next) {
-                        FlutterEngine engine = FlutterBoost.instance().getEngine();
+                        FlutterEngine engine = FlutterEngineCache.getInstance().get(cachedEngineId);
                         if (engine != null) {
 
                             FlutterRenderer flutterRenderer = engine.getRenderer();
@@ -96,7 +100,8 @@ class FlutterTextureHooker {
     /**
      * Hook FlutterTextureView for os version below Android.M.
      */
-    public void hookFlutterTextureView(FlutterTextureView flutterTextureView) {
+    public void hookFlutterTextureView(FlutterTextureView flutterTextureView, String cachedEngineId) {
+        this.cachedEngineId = cachedEngineId;
         if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.M) {
             if (flutterTextureView != null) {
                 TextureView.SurfaceTextureListener surfaceTextureListener = flutterTextureView.getSurfaceTextureListener();

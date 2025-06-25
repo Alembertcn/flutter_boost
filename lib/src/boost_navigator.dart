@@ -66,11 +66,13 @@ class BoostNavigator {
   /// [arguments] is the param you want to pass in next page
   /// if [withContainer] is true,next route will be with a native container
   /// (Android Activity / iOS UIViewController)
+  /// if want get res for startActivityForresource for fragment [context] is not null
   /// if [opaque] is true,the page is opaque (not transparent)
   ///
   /// And it will return the result popped by page as a Future<T>
   Future<T> push<T extends Object?>(String name,
       {Map<String, dynamic>? arguments,
+      BuildContext? context = null,
       bool withContainer = false,
       bool opaque = true}) {
     assert(
@@ -83,6 +85,15 @@ class BoostNavigator {
           arguments: arguments, withContainer: withContainer, opaque: opaque);
     } else {
       // 2. open native page or flutter page without container
+      if(context != null) {
+        // If the context is not null, we can get the source container id
+        // and pass it to the push method
+        var srcContainer = BoostContainer.of(context!);
+        if (srcContainer != null) {
+          arguments ??= {};
+          arguments['sourceContainerId'] = srcContainer.pageInfo.uniqueId;
+        }
+      }
       return appState!.pushWithInterceptor(
           name, false /* isFromHost */, isFlutter,
           arguments: arguments, withContainer: withContainer, opaque: opaque);

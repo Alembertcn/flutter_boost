@@ -22,15 +22,19 @@ import io.flutter.embedding.engine.FlutterJNI;
 import io.flutter.embedding.engine.dart.DartExecutor;
 import io.flutter.embedding.engine.loader.FlutterLoader;
 import io.flutter.view.FlutterMain;
+import io.flutter.embedding.engine.FlutterEngineGroup;
+import io.flutter.embedding.engine.dart.DartExecutor.DartEntrypoint;
+import java.util.Arrays;
+import java.util.ArrayList;
 
 public class FlutterBoost {
     public static final String ENGINE_ID = "flutter_boost_default_engine";
-
     private LinkedList<Activity> activityQueue = null;
     private FlutterBoostPlugin plugin;
     private boolean isBackForegroundEventOverridden = false;
     private boolean isAppInBackground = false;
-
+    private FlutterEngineGroup mFGroup = null;
+    private LinkedList<String> idealEngines = new LinkedList<>();
 
     private FlutterBoost() {
     }
@@ -65,6 +69,10 @@ public class FlutterBoost {
         isBackForegroundEventOverridden = options.shouldOverrideBackForegroundEvent();
         FlutterBoostUtils.setDebugLoggingEnabled(options.isDebugLoggingEnabled());
 
+        if(mFGroup ==null) {
+            // Initialize the FlutterEngineGroup if it is not already initialized.
+            mFGroup = new FlutterEngineGroup(application);
+        }
         // 1. initialize default engine
         FlutterEngine engine = getEngine();
         if (engine == null) {
@@ -72,12 +80,14 @@ public class FlutterBoost {
             if (options.flutterEngineProvider() != null) {
                 FlutterEngineProvider provider = options.flutterEngineProvider();
                 engine = provider.provideFlutterEngine(application);
+                if (engine != null) {
+                    allPlugins.add(FlutterBoostUtils.getPlugin(engine));
+                }
             }
 
             if (engine == null) {
-                // Second, when the engine from option.flutterEngineProvider is null,
-                // we should create a new engine
-                engine = new FlutterEngine(application, null, null, new FBPlatformViewsController(), options.shellArgs(), true);
+                engine = initFlutterEngine(ENGINE_ID, application);
+//                engine = new FlutterEngine(application, null, null, new FBPlatformViewsController(), options.shellArgs(), true);
             }
 
             // Cache the created FlutterEngine in the FlutterEngineCache.
@@ -97,6 +107,54 @@ public class FlutterBoost {
 
         //3. register ActivityLifecycleCallbacks
         setupActivityLifecycleCallback(application, isBackForegroundEventOverridden);
+    }
+
+    ArrayList<FlutterBoostPlugin> allPlugins= new ArrayList<>();
+    public FlutterEngine initFlutterEngine(String engineId, Application context) {
+        if (FlutterEngineCache.getInstance().get(engineId) == null) {
+            FlutterEngine engine = mFGroup.createAndRunEngine(
+                    new FlutterEngineGroup.Options(context)
+                            .setDartEntrypoint(DartEntrypoint.createDefault())
+                            .setInitialRoute("/")
+                            .setDartEntrypointArgs(Arrays.asList(
+                                    "--verbose"
+                            ))
+            );
+            // 缓存引擎
+            FlutterEngineCache.getInstance().put(engineId, engine);
+            allPlugins.add(FlutterBoostUtils.getPlugin(engine));
+        }
+        return FlutterEngineCache.getInstance().get(engineId);
+    }
+
+    public void tearDownPendingNow(){
+        for (String engineId : idealEngines) {
+            tearDown(engineId, false);
+        }
+        idealEngines.clear();
+    }
+    void tearDown(String engineId,boolean pending) {
+        if(pending){
+            if(!idealEngines.contains(engineId)){
+                idealEngines.add(engineId);
+            }
+            return;
+        }
+        if (engineId == null || engineId.isEmpty()) {
+            tearDown();
+        }
+        FlutterEngine engine = FlutterEngineCache.getInstance().get(engineId);
+        if (engine != null) {
+            allPlugins.remove(FlutterBoostUtils.getPlugin(engine));
+            engine.destroy();
+            FlutterEngineCache.getInstance().remove(engineId);
+        }
+    }
+
+    public void removePendingTearDown(String engineId) {
+        if(idealEngines.contains(engineId)){
+            idealEngines.remove(engineId);
+        }
     }
 
     /**
@@ -129,6 +187,15 @@ public class FlutterBoost {
         }
         return plugin;
     }
+     /**
+     * Gets the FlutterBoostPlugin.
+     *
+     * @return the FlutterBoostPlugin.
+     */
+    public FlutterBoostPlugin getPlugin(String engineId) {
+        return FlutterBoostUtils.getPlugin(FlutterEngineCache.getInstance().get(engineId));
+    }
+
 
     /**
      * Gets the FlutterEngine in use.
@@ -250,7 +317,16 @@ public class FlutterBoost {
      * @return ListenerRemover, you can use this to remove this listener
      */
     public ListenerRemover addEventListener(String key, EventListener listener) {
-        return getPlugin().addEventListener(key, listener);
+        return addEventListener(ENGINE_ID, key, listener);
+    }
+    public ListenerRemover addEventListener(String engineId, String key, EventListener listener) {
+        FlutterEngine flutterEngine = FlutterEngineCache.getInstance().get(engineId);
+        if (flutterEngine != null && FlutterBoostUtils.getPlugin(flutterEngine) != null) {
+            FlutterBoostPlugin plugin = FlutterBoostUtils.getPlugin(flutterEngine);
+            plugin.addEventListener(key, listener);
+            return plugin.addEventListener(key, listener);
+        }
+        return null;
     }
 
     /**
@@ -260,7 +336,21 @@ public class FlutterBoost {
      * @param args the arguments of this event
      */
     public void sendEventToFlutter(String key, Map<String, Object> args) {
-        getPlugin().sendEventToFlutter(key, args);
+        sendEventToFlutter(key, args, true);
+    }
+
+    /**
+     * Send the event to flutter
+     *
+     * @param key  the key of this event
+     * @param args the arguments of this event
+     */
+    void sendEventToFlutter(String key, Map<String, Object> args, boolean isAll) {
+        if(isAll){
+            allPlugins.forEach(plugin -> plugin.sendEventToFlutter(key, args));
+        }else{
+          getPlugin().sendEventToFlutter(key, args);
+        }
     }
 
     public boolean isAppInBackground() {

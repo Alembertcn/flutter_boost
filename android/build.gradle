@@ -4,18 +4,34 @@ version '1.0-SNAPSHOT'
 buildscript {
     repositories {
         google()
-        jcenter()
+        mavenCentral()
+          maven {
+            allowInsecureProtocol = true
+            url 'https://web-gy.httester.com/repository/maven-public/'
+            credentials{
+                username System.getenv("WB_REPO_USER")
+                password System.getenv("WB_REPO_PWD")
+            }
+        }
     }
 
     dependencies {
-        classpath 'com.android.tools.build:gradle:3.3.0'
+        classpath 'com.android.tools.build:gradle:7.3.0'
     }
 }
 
 rootProject.allprojects {
     repositories {
         google()
-        jcenter()
+        mavenCentral()
+        maven {
+            allowInsecureProtocol = true
+            url 'https://web-gy.httester.com/repository/maven-public/'
+            credentials{
+                username System.getenv("WB_REPO_USER")
+                password System.getenv("WB_REPO_PWD")
+            }
+        }
     }
 }
 
@@ -41,16 +57,21 @@ android {
         sourceCompatibility JavaVersion.VERSION_1_8
         targetCompatibility JavaVersion.VERSION_1_8
     }
+
+     buildTypes {
+        release {
+            debuggable false
+        }
+        debug {
+            debuggable true
+        }
+    }
 }
 
 dependencies {
     compileOnly 'com.google.android.material:material:1.0.0'
     compileOnly 'com.alibaba:fastjson:1.2.41'
-
 }
 
-ext {
-    groupId = 'com.taobao.fleamarket'
-    artifactId = "FlutterBoost"
-}
+//apply from: 'publishing_single.gradle'
 
