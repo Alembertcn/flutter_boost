@@ -147,15 +147,9 @@ class _FlutterIndexRouteState extends State<FlutterIndexRoute>
                       'Open native page',
                       style: TextStyle(fontSize: 22.0, color: Colors.blue),
                     )),
-                onTap: () => BoostNavigator.instance.push("native", arguments: {
-                  "message": "A Message From Dart"
-                }).then((value) {
-                  debugPrint("Return from Native: ${value.toString()}");
-                  ScaffoldMessenger.of(context)
-                    ..removeCurrentSnackBar()
-                    ..showSnackBar(
-                        SnackBar(content: Text("#onPageResult:" + "$value")));
-                }),
+                onTap: () => BoostNavigator.instance.push("native").then(
+                    (value) =>
+                        debugPrint("Return from Native: ${value.toString()}")),
               ),
               InkWell(
                 child: Container(
@@ -251,17 +245,6 @@ class _FlutterIndexRouteState extends State<FlutterIndexRoute>
                   onTap: () => BoostNavigator.instance
                       .push('hero_animation', withContainer: withContainer)),
               InkWell(
-                  child: Container(
-                      padding: const EdgeInsets.all(8.0),
-                      margin: const EdgeInsets.all(8.0),
-                      color: Colors.yellow,
-                      child: const Text(
-                        'SafeArea demo',
-                        style: TextStyle(fontSize: 22.0, color: Colors.black),
-                      )),
-                  onTap: () => BoostNavigator.instance
-                      .push("safe_area", withContainer: withContainer)),
-              InkWell(
                 child: Container(
                     padding: const EdgeInsets.all(8.0),
                     margin: const EdgeInsets.all(8.0),
@@ -275,17 +258,6 @@ class _FlutterIndexRouteState extends State<FlutterIndexRoute>
                     .then((value) =>
                         debugPrint('xlog, mediaquery, Return Value:$value')),
               ),
-              InkWell(
-                  child: Container(
-                      padding: const EdgeInsets.all(8.0),
-                      margin: const EdgeInsets.all(8.0),
-                      color: Colors.yellow,
-                      child: const Text(
-                        'Clipboard demo',
-                        style: TextStyle(fontSize: 22.0, color: Colors.black),
-                      )),
-                  onTap: () => BoostNavigator.instance
-                      .push("clipboard", withContainer: withContainer)),
               InkWell(
                 child: Container(
                     padding: const EdgeInsets.all(8.0),
@@ -478,48 +450,6 @@ class _FlutterIndexRouteState extends State<FlutterIndexRoute>
                 onTap: () {
                   BoostNavigator.instance
                       .push('flutterRebuildDemo', withContainer: withContainer);
-                },
-              ),
-              InkWell(
-                child: Container(
-                    padding: const EdgeInsets.all(8.0),
-                    margin: const EdgeInsets.all(8.0),
-                    color: Colors.yellow,
-                    child: const Text(
-                      'image format demo',
-                      style: TextStyle(fontSize: 22.0, color: Colors.black),
-                    )),
-                onTap: () {
-                  BoostNavigator.instance
-                      .push('image_format_demo', withContainer: withContainer);
-                },
-              ),
-              InkWell(
-                child: Container(
-                    padding: const EdgeInsets.all(8.0),
-                    margin: const EdgeInsets.all(8.0),
-                    color: Colors.yellow,
-                    child: const Text(
-                      'extended image demo',
-                      style: TextStyle(fontSize: 22.0, color: Colors.black),
-                    )),
-                onTap: () {
-                  BoostNavigator.instance
-                      .push('extendedImageDemo', withContainer: withContainer);
-                },
-              ),
-              InkWell(
-                child: Container(
-                    padding: const EdgeInsets.all(8.0),
-                    margin: const EdgeInsets.all(8.0),
-                    color: Colors.yellow,
-                    child: const Text(
-                      'cupertino page route demo',
-                      style: TextStyle(fontSize: 22.0, color: Colors.black),
-                    )),
-                onTap: () {
-                  BoostNavigator.instance
-                      .push('cupertino_page_route_demo', withContainer: withContainer);
                 },
               ),
             ],

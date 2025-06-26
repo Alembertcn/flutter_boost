@@ -26,8 +26,8 @@ class NativeView extends StatelessWidget {
             surfaceFactory: (context, controller) {
               return AndroidViewSurface(
                 controller: controller as AndroidViewController,
-                gestureRecognizers: const <
-                    Factory<OneSequenceGestureRecognizer>>{},
+                gestureRecognizers: const <Factory<
+                    OneSequenceGestureRecognizer>>{},
                 hitTestBehavior: PlatformViewHitTestBehavior.opaque,
               );
             },
@@ -57,13 +57,6 @@ class NativeView extends StatelessWidget {
         );
       case TargetPlatform.iOS:
         return UiKitView(
-          viewType: viewType,
-          layoutDirection: TextDirection.ltr,
-          creationParams: creationParams,
-          creationParamsCodec: const StandardMessageCodec(),
-        );
-      case TargetPlatform.ohos:
-        return OhosView(
           viewType: viewType,
           layoutDirection: TextDirection.ltr,
           creationParams: creationParams,

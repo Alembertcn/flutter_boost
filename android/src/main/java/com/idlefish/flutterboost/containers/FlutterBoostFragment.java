@@ -113,7 +113,7 @@ public class FlutterBoostFragment extends FlutterFragment implements FlutterView
     @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
         if (isDebugLoggingEnabled()) Log.d(TAG, "#onCreateView: " + this);
-        FlutterBoost.instance().getPlugin().onContainerCreated(this);
+        FlutterBoost.instance().getPlugin(getCachedEngineId()).onContainerCreated(this);
         View view = super.onCreateView(inflater, container, savedInstanceState);
         flutterView = FlutterBoostUtils.findFlutterView(view);
         // Detach FlutterView from engine before |onResume|.
@@ -221,7 +221,7 @@ public class FlutterBoostFragment extends FlutterFragment implements FlutterView
     @Override
     public void onDestroyView() {
         if (isDebugLoggingEnabled()) Log.d(TAG, "#onDestroyView: " + this);
-        FlutterBoost.instance().getPlugin().onContainerDestroyed(this);
+        FlutterBoost.instance().getPlugin(getCachedEngineId()).onContainerDestroyed(this);
 
         super.onDestroyView();
     }
@@ -349,7 +349,6 @@ public class FlutterBoostFragment extends FlutterFragment implements FlutterView
         //     textureHooker.onFlutterTextureViewRestoreState();
         //     onComplete.run();
         // });
-        
         FlutterBoost.instance().getPlugin(getCachedEngineId()).onContainerAppeared(this, () -> {
             // attach new container to the engine.
             attachToEngineIfNeeded();

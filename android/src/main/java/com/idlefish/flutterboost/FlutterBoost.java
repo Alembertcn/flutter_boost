@@ -21,6 +21,7 @@ import io.flutter.embedding.engine.FlutterEngineCache;
 import io.flutter.embedding.engine.FlutterJNI;
 import io.flutter.embedding.engine.dart.DartExecutor;
 import io.flutter.embedding.engine.loader.FlutterLoader;
+import io.flutter.embedding.engine.plugins.FlutterPlugin;
 import io.flutter.view.FlutterMain;
 import io.flutter.embedding.engine.FlutterEngineGroup;
 import io.flutter.embedding.engine.dart.DartExecutor.DartEntrypoint;
@@ -196,6 +197,14 @@ public class FlutterBoost {
         return FlutterBoostUtils.getPlugin(FlutterEngineCache.getInstance().get(engineId));
     }
 
+    public <T extends FlutterPlugin> T getPlugin(String engineId, Class<T> pluginClass) {
+        FlutterEngine engine = getEngine(engineId);
+        if (engine == null) {
+            return null;
+        }
+        return (T) engine.getPlugins().get(pluginClass);
+    }
+
 
     /**
      * Gets the FlutterEngine in use.
@@ -204,6 +213,9 @@ public class FlutterBoost {
      */
     public FlutterEngine getEngine() {
         return FlutterEngineCache.getInstance().get(ENGINE_ID);
+    }
+    public FlutterEngine getEngine(String engineId) {
+        return FlutterEngineCache.getInstance().get(engineId);
     }
 
     /**
@@ -323,7 +335,6 @@ public class FlutterBoost {
         FlutterEngine flutterEngine = FlutterEngineCache.getInstance().get(engineId);
         if (flutterEngine != null && FlutterBoostUtils.getPlugin(flutterEngine) != null) {
             FlutterBoostPlugin plugin = FlutterBoostUtils.getPlugin(flutterEngine);
-            plugin.addEventListener(key, listener);
             return plugin.addEventListener(key, listener);
         }
         return null;

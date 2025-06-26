@@ -1,7 +1,9 @@
+import 'dart:io' show Platform;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_boost/flutter_boost.dart';
+import 'package:webview_flutter/webview_flutter.dart';
 import 'package:flutter_boost_example/case/native_view.dart';
-import 'simple_webview.dart';
 
 class PlatformViewPerf extends StatefulWidget {
   @override
@@ -11,11 +13,16 @@ class PlatformViewPerf extends StatefulWidget {
 class PlatformViewPerfState extends State<PlatformViewPerf> {
   bool withContainer = true;
   bool usingHybridComposition = false;
+  final url = 'https://flutter.dev';
   final String viewType = '<simple-text-view>';
 
   @override
   void initState() {
     super.initState();
+    if (usingHybridComposition) {
+      // Enable hybrid composition.
+      if (Platform.isAndroid) WebView.platform = SurfaceAndroidWebView();
+    }
   }
 
   @override
@@ -112,7 +119,7 @@ class PlatformViewPerfState extends State<PlatformViewPerf> {
                     ),
                     SizedBox(
                       height: 100,
-                      child: SimpleWebView(),
+                      child: WebView(initialUrl: url),
                     ),
                   ],
                 ),
